@@ -1,0 +1,148 @@
+# hw-kit CI — the gate plan from specs/hw-kit.md, adjusted per its §Gate
+# plan (the crate is syscall-thin and hardware-shaped; the adjustments are
+# documented measurement posture, not gate evasion):
+#
+# - Tier B (owner decision #1: env-bound coverage reality — the syscall/
+#   hardware-bound paths are env-gated integration tests, documented in
+#   COVERAGE-NOTES.md; host CI measures the parse/validate/error taxonomy
+#   at full floor).
+# - miri runs in a dedicated job over the pure-std sysfs/proc parsing
+#   modules (miri-eligible); the FFI modules cannot be modeled (rationale
+#   recorded in COVERAGE-NOTES.md).
+# - loom n/a: no lock-free shared-memory primitives (rationale recorded).
+# - Non-Linux jobs run the build-FAILURE assertion (REQ-HW-005), not a build.
+# - gnu + musl Linux matrix (REQ-HW-005 gate shape).
+# - `deps-are-libc-only`: the cargo-tree assertion behind REQ-HW-006, on top
+#   of the shared workflow's cargo-deny bans job.
+# - `hardware`: the self-hosted-runner job (env-gated success paths),
+#   non-blocking until the runner is provisioned — tracked as a repo issue
+#   (spec §Risk register: pre-publication acceptance criterion).
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    uses: WyattAu/engineering-standards/.github/workflows/rust-kit.yml@024f2b5fc013a77316077cea58c9820d1bbfdd28 # main @ 2026-10-03
+    with:
+      tier: b            # Tier B per spec §Decisions (env-bound coverage reality)
+      all-features: true
+      loom: false        # n/a — no lock-free shared-memory primitives (recorded)
+      wasm: false        # n/a — Linux-only by declaration (REQ-HW-005)
+      miri: false        # miri runs in the dedicated job below (FFI not modelable)
+      bench-regression: false # criterion optional per §Gate plan (one-shot ops, not hot paths)
+    secrets: inherit
+
+  miri-parse:
+    name: miri (pure-std sysfs/proc parsing)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+      - name: Miri (fixture-driven parsing — file access needs isolation off)
+        env:
+          MIRIFLAGS: -Zmiri-disable-isolation
+        run: |
+          cargo +nightly miri test --lib topology::
+          cargo +nightly miri test --lib cpu::
+          cargo +nightly miri test --lib isolation::
+
+  musl:
+    name: linux-musl build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+      - name: install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: test (musl, all features)
+        run: cargo test --locked --all-features --target x86_64-unknown-linux-musl
+
+  non-linux-compile-error:
+    # REQ-HW-005: the crate does not exist off-Linux. Non-Linux jobs run a
+    # build-FAILURE assertion instead of a build.
+    name: non-Linux fails to compile (compile_error!)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: build must fail with the Linux-only message
+        shell: bash
+        run: |
+          if cargo check --locked --all-features --target ${{ matrix.target }} 2>stderr.txt; then
+            echo "::error::hw-kit compiled on ${{ matrix.target }} — the Linux-only gate is broken"
+            exit 1
+          fi
+          grep -q "hw-kit is Linux-only" stderr.txt || {
+            echo "::error::compile_error! message missing from the failure"; cat stderr.txt; exit 1;
+          }
+          echo "compile_error! fired as declared on ${{ matrix.target }}"
+
+  deps-are-libc-only:
+    # REQ-HW-006: runtime dependency surface is `libc` only, feature-gated;
+    # discovery (default features) is dependency-free. Enforced here with a
+    # cargo-tree assertion in addition to the shared workflow's cargo-deny
+    # bans job.
+    name: dependency tree is libc-only (REQ-HW-006)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: all features → exactly one external edge (libc)
+        run: |
+          cargo tree --locked --all-features --edges normal,build --prefix none | sort -u > tree-all.txt
+          cat tree-all.txt
+          grep -Eq '^libc v[0-9]' tree-all.txt || { echo "::error::libc edge missing"; exit 1; }
+          foreign=$(grep -Ev '^(hw-kit|libc) v' tree-all.txt | wc -l)
+          [ "$foreign" -eq 0 ] || { echo "::error::$foreign non-libc external edge(s)"; exit 1; }
+      - name: default features → zero external edges
+        run: |
+          cargo tree --locked --edges normal,build --prefix none | sort -u > tree-default.txt
+          cat tree-default.txt
+          foreign=$(grep -Ev '^hw-kit v' tree-default.txt | wc -l)
+          [ "$foreign" -eq 0 ] || { echo "::error::default build pulls $foreign external edge(s)"; exit 1; }
+
+  hardware:
+    # Env-gated hardware tests on the self-hosted runner (spec §Gate plan).
+    # Non-blocking until a runner is provisioned — provisioning the runner
+    # is a pre-publication acceptance criterion tracked as a repo issue.
+    name: hardware paths (self-hosted runner)
+    runs-on: [self-hosted, linux]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: env-gated integration tests (skip gracefully when a facility is absent)
+        env:
+          HW_KIT_PIN_TEST: "1"
+          HW_KIT_HW_TEST: "1"
+          HW_KIT_HUGEPAGE_TEST: "1"
+        run: cargo test --locked --all-features

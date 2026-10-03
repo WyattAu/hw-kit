@@ -1,0 +1,3 @@
+State:	R (running)
+Name:	qmaster
+Cpus_allowed_list:	4,5
