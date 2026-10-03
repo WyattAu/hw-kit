@@ -619,10 +619,16 @@ mod tests {
         .source()
         .is_none());
 
-        let io_err = io::Error::from_raw_os_error(ENOMEM);
-        assert_eq!(
-            HugetlbError::Unavailable { size_class: "2MiB", source: Some(io_err) }.to_string(),
-            "hugepage pool exhausted or unavailable (2MiB class): Cannot allocate memory (os error 12)"
+        // musl's strerror(ENOMEM) differs from glibc's; assert the stable
+        // prefix and let the errno carry the platform wording.
+        let text = HugetlbError::Unavailable {
+            size_class: "2MiB",
+            source: Some(io::Error::from_raw_os_error(ENOMEM)),
+        }
+        .to_string();
+        assert!(
+            text.starts_with("hugepage pool exhausted or unavailable (2MiB class): "),
+            "{text}"
         );
         assert!(HugetlbError::Unavailable {
             size_class: "2MiB",
@@ -631,15 +637,14 @@ mod tests {
         .source()
         .is_some());
 
-        let io_err = io::Error::from_raw_os_error(EIO);
-        assert_eq!(
-            HugetlbError::Syscall {
-                call: "mmap",
-                source: io_err
-            }
-            .to_string(),
-            "syscall `mmap` failed: Input/output error (os error 5)"
-        );
+        // strerror wording differs between libc implementations (glibc
+        // "Input/output error", musl "I/O error") — stable prefix only.
+        let text = HugetlbError::Syscall {
+            call: "mmap",
+            source: io::Error::from_raw_os_error(EIO),
+        }
+        .to_string();
+        assert!(text.starts_with("syscall `mmap` failed: "), "{text}");
     }
 
     #[test]
