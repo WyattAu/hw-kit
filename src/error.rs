@@ -405,11 +405,19 @@ mod tests {
     use super::*;
     use std::error::Error as _;
 
+    // Raw Linux errno values (ABI-stable) — the `libc` feature is off in
+    // the miri/default-feature test builds, and these tests must compile
+    // everywhere the crate compiles.
+    const EINVAL: i32 = 22;
+    const ENOENT: i32 = 2;
+    const ENOMEM: i32 = 12;
+    const EIO: i32 = 5;
+
     /// Every Display arm renders, and the `source()` chains follow the
     /// documented rule (syscall-shaped variants expose the io::Error).
     #[test]
     fn hwerror_variants_render_and_chain() {
-        let io_err = io::Error::from_raw_os_error(libc::EINVAL);
+        let io_err = io::Error::from_raw_os_error(EINVAL);
 
         let e = HwError::TopologyParse(TopologyError::Malformed {
             path: "/sys/x".to_string(),
@@ -474,7 +482,7 @@ mod tests {
 
     #[test]
     fn topology_error_rendering() {
-        let io_err = io::Error::from_raw_os_error(libc::ENOENT);
+        let io_err = io::Error::from_raw_os_error(ENOENT);
         let e = TopologyError::Io {
             path: "/sys".to_string(),
             source: io_err,
@@ -498,7 +506,7 @@ mod tests {
 
     #[test]
     fn pin_error_rendering_and_offender_display() {
-        let io_err = io::Error::from_raw_os_error(libc::EINVAL);
+        let io_err = io::Error::from_raw_os_error(EINVAL);
         assert_eq!(
             PinError::Syscall {
                 call: "sched_getaffinity",
@@ -530,7 +538,7 @@ mod tests {
         assert_eq!(e.to_string(), "set not isolated; 1 overlapping task(s)");
         assert!(e.source().is_none());
 
-        let io_err = io::Error::from_raw_os_error(libc::ENOENT);
+        let io_err = io::Error::from_raw_os_error(ENOENT);
         assert_eq!(
             PinError::Scan {
                 path: "/proc".to_string(),
@@ -561,7 +569,7 @@ mod tests {
 
     #[test]
     fn numa_error_rendering() {
-        let io_err = io::Error::from_raw_os_error(libc::EINVAL);
+        let io_err = io::Error::from_raw_os_error(EINVAL);
         assert_eq!(
             NumaError::Syscall {
                 call: "mbind",
@@ -572,7 +580,7 @@ mod tests {
         );
         assert!(NumaError::Syscall {
             call: "mbind",
-            source: io::Error::from_raw_os_error(libc::EINVAL)
+            source: io::Error::from_raw_os_error(EINVAL)
         }
         .source()
         .is_some());
@@ -611,19 +619,19 @@ mod tests {
         .source()
         .is_none());
 
-        let io_err = io::Error::from_raw_os_error(libc::ENOMEM);
+        let io_err = io::Error::from_raw_os_error(ENOMEM);
         assert_eq!(
             HugetlbError::Unavailable { size_class: "2MiB", source: Some(io_err) }.to_string(),
             "hugepage pool exhausted or unavailable (2MiB class): Cannot allocate memory (os error 12)"
         );
         assert!(HugetlbError::Unavailable {
             size_class: "2MiB",
-            source: Some(io::Error::from_raw_os_error(libc::ENOMEM))
+            source: Some(io::Error::from_raw_os_error(ENOMEM))
         }
         .source()
         .is_some());
 
-        let io_err = io::Error::from_raw_os_error(libc::EIO);
+        let io_err = io::Error::from_raw_os_error(EIO);
         assert_eq!(
             HugetlbError::Syscall {
                 call: "mmap",
