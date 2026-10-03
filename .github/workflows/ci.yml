@@ -129,10 +129,38 @@ jobs:
           foreign=$(grep -Ev '^hw-kit v' tree-default.txt | wc -l)
           [ "$foreign" -eq 0 ] || { echo "::error::default build pulls $foreign external edge(s)"; exit 1; }
 
+  runner-check:
+    # The hardware job below needs a self-hosted runner. Until one is
+    # provisioned (repo issue #1 — spec §Risk register: pre-publication
+    # acceptance criterion), the check reports unavailable and the hardware
+    # job shows as an honest `skipped`, so the run can complete green.
+    name: self-hosted runner present?
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      available: ${{ steps.check.outputs.available }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runners" \
+            --jq '[.runners[] | select(.status == "online")] | length' 2>/dev/null || echo 0)
+          echo "online self-hosted runners: ${count}"
+          if [ "${count}" -gt 0 ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no self-hosted runner provisioned — hardware paths run as typed skips (see COVERAGE-NOTES.md)"
+          fi
+
   hardware:
     # Env-gated hardware tests on the self-hosted runner (spec §Gate plan).
-    # Non-blocking until a runner is provisioned — provisioning the runner
-    # is a pre-publication acceptance criterion tracked as a repo issue.
+    # Skipped (typed) until the runner is provisioned — provisioning is a
+    # pre-publication acceptance criterion tracked as repo issue #1.
+    needs: runner-check
+    if: needs.runner-check.outputs.available == 'true'
     name: hardware paths (self-hosted runner)
     runs-on: [self-hosted, linux]
     continue-on-error: true
