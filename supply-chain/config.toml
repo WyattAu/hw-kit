@@ -159,3 +159,6 @@ criteria = "safe-to-run"
 [[exemptions.zerocopy-derive]]
 version = "0.8.59"
 criteria = "safe-to-run"
+
+[policy]
+audit-as-crates-io = true
