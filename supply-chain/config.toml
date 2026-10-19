@@ -160,5 +160,5 @@ criteria = "safe-to-run"
 version = "0.8.59"
 criteria = "safe-to-run"
 
-[policy]
+[policy.hw-kit]
 audit-as-crates-io = true
