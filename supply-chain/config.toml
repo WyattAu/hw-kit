@@ -4,6 +4,9 @@
 [cargo-vet]
 version = "0.10"
 
+[policy.hw-kit]
+audit-as-crates-io = true
+
 [[exemptions.autocfg]]
 version = "1.5.1"
 criteria = "safe-to-run"
@@ -159,6 +162,3 @@ criteria = "safe-to-run"
 [[exemptions.zerocopy-derive]]
 version = "0.8.59"
 criteria = "safe-to-run"
-
-[policy.hw-kit]
-audit-as-crates-io = true
