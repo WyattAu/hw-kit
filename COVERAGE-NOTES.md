@@ -1,4 +1,4 @@
-# hw-kit — COVERAGE-NOTES.md
+# hw-kit: COVERAGE-NOTES.md
 #
 # Estate doctrine (engineering-standards COVERAGE.md): environment-bound
 # code paths are documented here as env-gated exceptions, and the CI floor
@@ -6,10 +6,10 @@
 
 ## Tier
 
-**Tier B** (owner decision #1, spec §Decisions — "env-bound coverage
+**Tier B** (owner decision #1, spec §Decisions: "env-bound coverage
 reality"). hw-kit is a syscall-thin wrapper whose *success* paths require
 hardware facilities a shared runner does not have; the crate's
-parse/validate/error-taxonomy logic — the logic that can actually rot — is
+parse/validate/error-taxonomy logic (the logic that can actually rot) is
 measured at full floor on host CI.
 
 ## Env-gated integration tests
@@ -21,11 +21,11 @@ measured at full floor on host CI.
 | `HW_KIT_HUGEPAGE_TEST=1` | `tests/hugepage.rs::one_gib_reservation_round_trip` | 1 GiB hugepage pool reservation |
 
 Gated tests **skip gracefully** (typed skip notes on stdout) when the
-variable is unset — and additionally guard on facility presence
+variable is unset: and additionally guard on facility presence
 (`/sys/devices/system/cpu/possible`, `/sys/kernel/mm/hugepages/*`,
 node counts) so a provisioned runner that lacks a facility still fails
 nothing. CI runs them on the `hardware` job (`[self-hosted, linux]`,
-`continue-on-error: true` — non-blocking until the runner is provisioned;
+`continue-on-error: true`: non-blocking until the runner is provisioned;
 **provisioning the runner is a pre-publication acceptance criterion**,
 tracked as a repo issue).
 
@@ -42,7 +42,7 @@ error arm has an always-runnable test**:
 | `PinError::EmptySet` | `pinning_rejects_empty_set_typed` |
 | `PinError::Syscall` | `pinning_impossible_cpu_fails_typed`, `numa_bind_unmapped_range_is_typed_syscall` |
 | `PinError::NoSuchTask` | `pinning_dead_tid_is_typed_esrch` |
-| `PinError::AffinityMismatch` | read-back verification in `pin_current`/`pin_thread`; mismatch requires a narrowing host (cpuset/offline CPUs) — exercised on the hardware runner by the gated round trip's assertion contract; the arm is one branch in an always-run function (covered by llvm-cov line metrics) |
+| `PinError::AffinityMismatch` | read-back verification in `pin_current`/`pin_thread`; mismatch requires a narrowing host (cpuset/offline CPUs): exercised on the hardware runner by the gated round trip's assertion contract; the arm is one branch in an always-run function (covered by llvm-cov line metrics) |
 | `PinError::NotIsolated` | `overlap_is_reported_leader_and_threads` → `ensure_clean` |
 | `PinError::MalformedProc` | `malformed_status_is_typed_not_skipped` |
 | `PinError::Scan` | `missing_proc_root_is_typed_scan_error` |
@@ -57,13 +57,13 @@ error arm has an always-runnable test**:
 
 ## Gate applicability (recorded rationale)
 
-- **miri** — the FFI modules (`affinity`, `numa`, `hugepage`) execute real
+- **miri**: the FFI modules (`affinity`, `numa`, `hugepage`) execute real
   syscalls miri cannot model: n/a for those. The pure-`std` sysfs and
   `/proc` parsing *is* miri-eligible and runs in CI
   (`miri-parse` job, `-Zmiri-disable-isolation` for fixture file access).
-- **loom** — n/a: no lock-free shared-memory primitives (the crate's
+- **loom**: n/a: no lock-free shared-memory primitives (the crate's
   concurrency surface is `sched_setaffinity`, which the kernel serializes).
-- **criterion** — optional per §Gate plan: discovery and pinning are
+- **criterion**: optional per §Gate plan: discovery and pinning are
   one-shot cold-path operations; the hot path is the consumer's memory.
   Deviation from the Tier-A latency-relevant default recorded here.
 

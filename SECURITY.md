@@ -1,4 +1,4 @@
-# Security Policy — hw-kit
+# Security Policy: hw-kit
 
 ## Supported versions
 
@@ -23,7 +23,7 @@ patch ships.
 sysfs/`/proc` parsing. Security considerations for integrators:
 
 - **The raw NUMA hook is `unsafe` on purpose** (`numa_bind_region`): its
-  `# Safety` contract is the caller's obligation — a wrong `addr`/`len`
+  `# Safety` contract is the caller's obligation: a wrong `addr`/`len`
   there is memory-unsafety the kernel cannot catch. Prefer the safe
   wrappers (`alloc_on_node`, `alloc_preferred_on`) unless you have a
   policy the two blessed modes cannot express.
@@ -38,7 +38,7 @@ sysfs/`/proc` parsing. Security considerations for integrators:
 - The isolation scan reads `/proc` and never writes cgroup controllers;
   pinning changes only the calling/target task's affinity mask.
 - Dependency surface is `libc` only (feature-gated; the default build has
-  zero dependencies) — enforced by CI (`deps-are-libc-only`,
+  zero dependencies): enforced by CI (`deps-are-libc-only`,
   cargo-deny bans, cargo-vet).
 - Every `unsafe` block carries a `// SAFETY:` justification
   (lint-enforced) and is audited in `src/lib.rs` § Safety.
