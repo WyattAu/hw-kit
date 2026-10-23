@@ -1,4 +1,5 @@
 # hw-kit
+[![Estate integration](https://github.com/WyattAu/estate-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/WyattAu/estate-integration/actions/workflows/ci.yml)
 
 Hardware topology and control for Rust: CPU/NUMA discovery, core pinning,
 NUMA binding, hugepage reservation. **Linux-only, by declaration** (L1
