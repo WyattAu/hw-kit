@@ -1,9 +1,9 @@
 [package]
 name = "hw-kit"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.85"
-description = "Hardware topology and control for Rust — CPU/NUMA discovery, core pinning, NUMA binding, hugepage reservation (Linux)"
+description = "Hardware topology and control for Rust: CPU/NUMA discovery, core pinning, NUMA binding, hugepage reservation (Linux)"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/WyattAu/hw-kit"
 readme = "README.md"
