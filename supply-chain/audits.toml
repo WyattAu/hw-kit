@@ -5,3 +5,8 @@
 criteria = "safe-to-deploy"
 version = "0.1.0"
 notes = "WyattAu first-party crate; reviewed at implementation against specs/hw-kit.md."
+
+[[audits.hw-kit]]
+who = "WyattAu <wyatt_au@protonmail.com>"
+criteria = "safe-to-deploy"
+version = "0.1.1"
