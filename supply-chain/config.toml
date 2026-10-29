@@ -48,10 +48,6 @@ criteria = "safe-to-run"
 version = "0.10.2"
 criteria = "safe-to-run"
 
-[[exemptions.cpufeatures]]
-version = "0.3.1"
-criteria = "safe-to-run"
-
 [[exemptions.equivalent]]
 version = "1.0.3"
 criteria = "safe-to-run"
